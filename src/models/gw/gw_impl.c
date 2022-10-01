@@ -29,6 +29,6 @@ static int handle_message_loc_push(struct bt_mesh_model *model,
 }
 
 const struct bt_mesh_model_op hrtls_model_gw_ops[] = {
-    { HRTLS_MODEL_GW_LOC_PUSH_OPCODE, HRTLS_MODEL_GW_LOC_PUSH_LEN, handle_message_loc_push},
+    { HRTLS_MODEL_GW_LOC_PUSH_OPCODE, BT_MESH_LEN_EXACT(HRTLS_MODEL_GW_LOC_PUSH_LEN), handle_message_loc_push},
     BT_MESH_MODEL_OP_END
 };
