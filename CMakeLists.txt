@@ -4,7 +4,7 @@ find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(hyperrtls)
 
 message("conf file: ${CONF_FILE}")
-if (NOT ${CONF_FILE} MATCHES "prj_(.*).conf")
+if (NOT ${CONF_FILE} MATCHES "prj_(.*)\.conf")
     message(FATAL_ERROR "Please specify build target")
 endif()
 
@@ -17,6 +17,10 @@ endif()
 
 message("Selected build target: ${BUILD_TARGET}")
 
+set(sources_gw
+    src/gw/main.c
+    src/models/gw/gw_impl.c)
+
 target_sources(app PRIVATE
-               src/${BUILD_TARGET}/main.c)
+               ${sources_${BUILD_TARGET}})
 target_include_directories(app PRIVATE include)
