@@ -15,14 +15,12 @@ struct hrtls_model_gw_handlers {
     hrlts_model_gw_loc_push_handler_t *push;
 };
 
-extern const struct bt_mesh_model_op hrtls_model_gw_ops[];
-
 #define HRTLS_MODEL_GW_ID 0x0001
 
 #define HRTLS_MODEL_GW_NODE_REG_OPCODE BT_MESH_MODEL_OP_3(0x01, HRTLS_COMPANY_ID)
 
 #define HRTLS_MODEL_GW_LOC_PUSH_OPCODE BT_MESH_MODEL_OP_3(0x02, HRTLS_COMPANY_ID)
-#define HRTLS_MODEL_GW_LOC_PUSH_LEN sizeof(struct hrtls_model_gw_handlers)
+#define HRTLS_MODEL_GW_LOC_PUSH_LEN sizeof(struct hrtls_model_gw_location)
 
 #define HRTLS_MODEL_GW(handlers) \
   BT_MESH_MODEL_VND_CB( \
@@ -32,3 +30,5 @@ extern const struct bt_mesh_model_op hrtls_model_gw_ops[];
     NULL, \
     handlers, \
     NULL)
+
+extern const struct bt_mesh_model_op hrtls_model_gw_ops[];

@@ -18,8 +18,12 @@ endif()
 message("Selected build target: ${BUILD_TARGET}")
 
 set(sources_gw
-    src/gw/main.c
+    src/apps/gw/main.c
     src/models/gw/gw_impl.c)
+
+set(sources_tag
+    src/apps/tag/main.c
+    src/models/tag/tag_impl.c)
 
 target_sources(app PRIVATE
                ${sources_${BUILD_TARGET}})

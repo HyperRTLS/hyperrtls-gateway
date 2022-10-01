@@ -9,14 +9,9 @@
 #include <zephyr/logging/log_ctrl.h>
 #include <zephyr/sys/byteorder.h>
 
-#include <models/common.h>
-#include <models/gw.h>
+#include <models/tag.h>
 
 LOG_MODULE_REGISTER(main);
-
-static void loc_push_handler(uint16_t sender_addr, const struct hrtls_model_gw_location *location) {
-    LOG_INF("addr %" PRIu16 "sent location %f/%f/%f", sender_addr, location->x, location->y, location->z);
-}
 
 static void attention_on(struct bt_mesh_model *mod)
 {
@@ -28,10 +23,6 @@ static void attention_off(struct bt_mesh_model *mod)
     LOG_INF("Attention off");
 }
 
-static struct hrtls_model_gw_handlers gw_handlers = {
-    .push = loc_push_handler
-};
-
 static struct bt_mesh_health_srv health_srv = {
     .cb = &(const struct bt_mesh_health_srv_cb) {
         .attn_on = attention_on,
@@ -42,7 +33,7 @@ static struct bt_mesh_health_srv health_srv = {
 BT_MESH_HEALTH_PUB_DEFINE(health_pub, 0);
 
 static struct bt_mesh_model vnd_models[] = {
-    HRTLS_MODEL_GW(&gw_handlers)
+    HRTLS_MODEL_TAG
 };
 
 static struct bt_mesh_model sig_models[] = {
@@ -100,7 +91,7 @@ static void self_provision(void) {
 
     uint16_t addr = sys_get_le16(dev_uuid) & BIT_MASK(15);
 
-    LOG_INF("Self-provisioning with address 0x%04" PRIu16, addr);
+    LOG_INF("Self-provisioning with address 0x%04" PRIx16, addr);
     int err = bt_mesh_provision(net_key, 0, 0, 0, addr, dev_key);
     if (err) {
         LOG_ERR("Provisioning failed, %d", err);
@@ -110,9 +101,31 @@ static void self_provision(void) {
     err = bt_mesh_app_key_add(0, 0, app_key);
     if (err) {
         LOG_ERR("App key add failed, %d", err);
+        fail();
     }
 
     vnd_models[0].keys[0] = 0;
+}
+
+static void loc_push_work_handler(struct k_work *work);
+
+static K_WORK_DELAYABLE_DEFINE(loc_push_work, loc_push_work_handler);
+
+static void loc_push_work_handler(struct k_work *work) {
+    // TODO: temporarily hacked
+    static const uint16_t gw_addr = 0x0100;
+    static struct hrtls_model_gw_location loc;
+
+    LOG_INF("Sending location %f/%f/%f to addr 0x%04" PRIx16, loc.x, loc.y, loc.z, gw_addr);
+    int res = hrtls_model_tag_loc_push(&vnd_models[0], gw_addr, &loc);
+    LOG_INF("Send res: %d", res);
+    loc.x += 1.;
+    loc.y += 1.;
+    loc.z += 1.;
+
+    // TODO: Technically the delay should be a little shorter, I should aim
+    // for scheduling the job to run and roughly the same time
+    k_work_schedule(&loc_push_work, K_SECONDS(3));
 }
 
 static void bt_ready(int err) {
@@ -137,17 +150,17 @@ static void bt_ready(int err) {
     self_provision();
 
     LOG_INF("Mesh initialized");
+    k_work_schedule(&loc_push_work, K_SECONDS(5));
 }
 
 void main(void) {
     LOG_INF("Initializing...");
 
-    // Why this fails for qemu_x86 target? lol
     int err = hwinfo_get_device_id(dev_uuid, sizeof(dev_uuid));
     if (err < 0) {
         LOG_ERR("Couldn't get device id, %d", err);
         for (uint8_t i = 0; i < ARRAY_SIZE(dev_uuid); i++) {
-            dev_uuid[i] = i;
+            dev_uuid[i] = 16 + i;
         }
     }
 
