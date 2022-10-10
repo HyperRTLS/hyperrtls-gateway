@@ -19,13 +19,9 @@ int hrtls_model_tag_loc_push(struct bt_mesh_model *tag_model, uint16_t addr, str
         .send_rel = true
     };
 
-    LOG_INF("Sender app_idx: %" PRIu16, ctx.app_idx);
-
     BT_MESH_MODEL_BUF_DEFINE(buf, HRTLS_MODEL_GW_LOC_PUSH_OPCODE, HRTLS_MODEL_GW_LOC_PUSH_LEN);
     bt_mesh_model_msg_init(&buf, HRTLS_MODEL_GW_LOC_PUSH_OPCODE);
     net_buf_simple_add_mem(&buf, location, sizeof(*location));
-
-    LOG_INF("Sender app_idx: %" PRIu16, ctx.app_idx);
 
     return bt_mesh_model_send(tag_model, &ctx, &buf, NULL, NULL);
 }

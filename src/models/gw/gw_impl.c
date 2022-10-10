@@ -15,7 +15,7 @@ static int handle_message_loc_push(struct bt_mesh_model *model,
 
     if (buf->len != sizeof(location)) {
         LOG_ERR("Loc push incoming buffer has unexpected length: %" PRIu16, buf->len);
-        return 0;
+        return -1;
     }
 
     LOG_INF("Loc push message received");
