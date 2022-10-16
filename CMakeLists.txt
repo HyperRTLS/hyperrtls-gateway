@@ -25,8 +25,12 @@ set(sources_gw
     src/apps/gw/mesh/handlers.c
     src/apps/gw/mesh/mesh.c
     src/apps/gw/mesh/mesh.h
+    src/apps/gw/gai.c
+    src/apps/gw/gai.h
     src/apps/gw/main.c
     src/apps/gw/main.h
+    src/apps/gw/mqtt.c
+    src/apps/gw/mqtt.h
     src/models/gw/gw_impl.c)
 
 set(sources_tag
