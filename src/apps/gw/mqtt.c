@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdatomic.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -24,7 +25,7 @@ LOG_MODULE_REGISTER(mqtt);
 #define USERNAME "lubiepapaja2137"
 #define PASSWORD "pass"
 #define BUF_SIZE 2048
-#define CONNECT_TIMEOUT_MS 5000
+#define TIMEOUT_MS 5000
 #define CLIENT_ID_MAXLEN 16
 #define GW_CONFIG_TOPIC "gw/%s/config"
 #define LOC_PUSH_TOPIC "tag/%s/location"
@@ -40,6 +41,7 @@ struct client_wrapper {
     struct sockaddr_in addr;
     uint8_t rx_buffer[BUF_SIZE];
     uint8_t tx_buffer[BUF_SIZE];
+    atomic_uint_fast16_t next_mid;
     char gw_config_topic[sizeof(GW_CONFIG_TOPIC) + CLIENT_ID_MAXLEN - (sizeof("%s") - 1)];
     struct zsock_pollfd poll_fd;
 
@@ -47,6 +49,23 @@ struct client_wrapper {
     // TODO: reverse evt_err logic?
     int evt_err;
 };
+
+static uint16_t get_next_mid(struct client_wrapper *wrapper) {
+    uint16_t res;
+    do {
+        res = (uint16_t) atomic_fetch_add(&wrapper->next_mid, 1);
+    }
+    while (res == 0); // Message ID == 0 is disallowed by the spec
+    return res;
+}
+
+static inline struct mqtt_utf8 make_mqtt_utf8(const char *str) {
+    assert(str);
+    return (struct mqtt_utf8) {
+        .utf8 = str,
+        .size = strlen(str)
+    };
+}
 
 static void evt_cb_handler_connack(struct client_wrapper *wrapper, const struct mqtt_evt *evt) {
     if (evt->type != MQTT_EVT_CONNACK) {
@@ -60,7 +79,15 @@ static void evt_cb_handler_connack(struct client_wrapper *wrapper, const struct 
         return;
     }
     LOG_INF("Server return code: %d", (int) evt->param.connack.return_code);
-    LOG_INF("evt_cv_handler_connack - success");
+}
+
+static void evt_cb_handler_suback(struct client_wrapper *wrapper, const struct mqtt_evt *evt) {
+    if (evt->type != MQTT_EVT_SUBACK) {
+        LOG_WRN("Unexpected packet type");
+        wrapper->evt_err = -1;
+        return;
+    }
+    LOG_INF("Suback received");
 }
 
 static void evt_cb_handler_default(struct client_wrapper *wrapper, const struct mqtt_evt *evt) {
@@ -98,11 +125,11 @@ static void mqtt_evt_cb(struct mqtt_client *const client,
 static void init_mqtt_client(struct client_wrapper *wrapper) {
     assert(wrapper);
 
-    wrapper->username.utf8 = USERNAME;
-    wrapper->username.size = sizeof(USERNAME) - 1;
-    wrapper->password.utf8 = PASSWORD;
-    wrapper->password.size = sizeof(PASSWORD) - 1;
+    wrapper->username = make_mqtt_utf8(USERNAME);
+    wrapper->password = make_mqtt_utf8(PASSWORD);
     snprintf(wrapper->gw_config_topic, sizeof(wrapper->gw_config_topic), GW_CONFIG_TOPIC, USERNAME);
+    atomic_store(&wrapper->next_mid, 0);
+    wrapper->overrided_evt_cb_handler = NULL;
 
     mqtt_client_init(&wrapper->client);
 
@@ -119,8 +146,6 @@ static void init_mqtt_client(struct client_wrapper *wrapper) {
     wrapper->client.rx_buf_size = sizeof(wrapper->rx_buffer);
     wrapper->client.tx_buf = wrapper->tx_buffer;
     wrapper->client.tx_buf_size = sizeof(wrapper->tx_buffer);
-
-    wrapper->overrided_evt_cb_handler = NULL;
 }
 
 static int configure_mqtt_addr(struct client_wrapper *wrapper) {
@@ -140,11 +165,26 @@ static int do_poll(struct client_wrapper *wrapper, int wait_ms) {
     return zsock_poll(&wrapper->poll_fd, 1, wait_ms);
 }
 
+static int do_await(struct client_wrapper *wrapper, int wait_ms) {
+    int res = do_poll(wrapper, wait_ms);
+    if (res == 0) {
+        LOG_WRN("Poll timed out");
+        return -1;
+    }
+    if (res < 0 || wrapper->poll_fd.revents != ZSOCK_POLLIN) {
+        LOG_WRN("Poll failed with res %d, revents: %d", res, wrapper->poll_fd.revents);
+        return res;
+    }
+    return 0;
+}
+
 static int do_input(struct client_wrapper *wrapper, evt_cb_handler_t *evt_cb_handler) {
     wrapper->overrided_evt_cb_handler = evt_cb_handler;
     wrapper->evt_err = 0;
 
+    LOG_INF("pre input");
     int res = mqtt_input(&wrapper->client);
+    LOG_INF("after input");
     if (res || wrapper->evt_err) {
         LOG_WRN("do_input failed with res: %d, evt_err: %d", res, wrapper->evt_err);
     }
@@ -167,9 +207,8 @@ static int do_connect(struct client_wrapper *wrapper) {
     LOG_INF("MQTT client socket connected");
     init_poll_fd(wrapper);
 
-    res = do_poll(wrapper, CONNECT_TIMEOUT_MS);
-    if (res <= 0 || wrapper->poll_fd.revents != ZSOCK_POLLIN) {
-        LOG_WRN("Poll failed with res: %d, revents: %hd", res, wrapper->poll_fd.revents);
+    res = do_await(wrapper, TIMEOUT_MS);
+    if (res) {
         goto abort;
     }
 
@@ -188,15 +227,44 @@ abort:;
     return res;
 }
 
+static int do_subscribe(struct client_wrapper *wrapper) {
+    // TODO: future impl will probably have to track many topics
+    const struct mqtt_subscription_list subs_list = {
+        .list = &(struct mqtt_topic) {
+            .topic = make_mqtt_utf8(wrapper->gw_config_topic),
+            .qos = 1
+        },
+        .list_count = 1,
+        .message_id = get_next_mid(wrapper)
+    };
+    LOG_INF("Attempting to subscribe topic %s", wrapper->gw_config_topic);
+    int res = mqtt_subscribe(&wrapper->client, &subs_list);
+    if (res) {
+        LOG_ERR("mqtt_subscribe() failed");
+        return res;
+    }
+
+    res = do_await(wrapper, TIMEOUT_MS);
+    if (res) {
+        return -1;
+    }
+
+    return do_input(wrapper, evt_cb_handler_suback);
+}
+
 static int run_cycle(void) {
     static struct client_wrapper wrapper;
     init_mqtt_client(&wrapper);
+
     int res = do_connect(&wrapper);
     if (res) {
-        return res == FATAL_ERROR ? FATAL_ERROR : 0;
+        return res;
     }
 
-    LOG_INF("Connect with res: %d", res);
+    res = do_subscribe(&wrapper);
+    if (res) {
+        return res;
+    }
 
     while (true) {
         res = do_poll(&wrapper, mqtt_keepalive_time_left(&wrapper.client));
@@ -230,7 +298,7 @@ static int run_cycle(void) {
 
 void run_mqtt_client(void) {
     int err;
-    while (!(err = run_cycle())) {
+    while ((err = run_cycle()) != FATAL_ERROR) {
         LOG_WRN("MQTT client resets due to transient errors");
         k_sleep(RETRY_PERIOD);
     }
