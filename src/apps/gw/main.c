@@ -19,8 +19,8 @@ static K_WORK_DELAYABLE_DEFINE(fake_loc_push_dwork, fake_loc_push_dwork_handler)
 
 uint8_t dev_uuid[16];
 
-static void pub_handler(void) {
-    LOG_INF("Received a publish!");
+static void pub_handler(const uint8_t *buffer, size_t len) {
+    LOG_HEXDUMP_INF(buffer, len, "pub_handler");
 }
 
 static void fake_loc_push_dwork_handler(struct k_work *work) {

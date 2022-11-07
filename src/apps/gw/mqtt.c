@@ -98,16 +98,21 @@ static void evt_cb_handler_default(const struct mqtt_evt *evt) {
     uint32_t len = evt->param.publish.message.payload.len;
     LOG_INF("Received %" PRIu32 " bytes of payload", len);
 
-    // TODO: following loop should be implemented differently, look up examples in SDK
-    wrapper.config->pub_handler();
-
-    while (len) {
-        char buffer[BATCH_MAX + 1] = { 0 };
-        uint32_t batch_size = len > BATCH_MAX ? BATCH_MAX : len;
-        len -= batch_size;
-        int res = mqtt_readall_publish_payload(&wrapper.client, buffer, sizeof(buffer) - 1);
-        LOG_INF("res %d, payload: %s", res, buffer);
+    static uint8_t incoming_publish_buf[BUF_SIZE];
+    if (len > sizeof(incoming_publish_buf)) {
+        LOG_ERR("Received a publish packet with payload larger than BUF_SIZE");
+        wrapper.evt_err = -1;
+        return;
     }
+
+    int res = mqtt_readall_publish_payload(&wrapper.client, incoming_publish_buf, len);
+    if (res) {
+        LOG_ERR("Publish readall failed with result %d", res);
+        wrapper.evt_err = res;
+        return;
+    }
+
+    wrapper.config->pub_handler(incoming_publish_buf, len);
 }
 
 static void mqtt_evt_cb(struct mqtt_client *const client,

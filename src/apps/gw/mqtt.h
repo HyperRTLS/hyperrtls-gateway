@@ -3,7 +3,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-typedef void gw_mqtt_client_pub_handler_t(void);
+typedef void gw_mqtt_client_pub_handler_t(const uint8_t *buffer, size_t len);
 
 struct gw_mqtt_client_config {
     const char *server_addr;
