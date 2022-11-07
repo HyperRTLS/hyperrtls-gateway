@@ -13,7 +13,28 @@
 
 LOG_MODULE_REGISTER(main);
 
+static void fake_loc_push_dwork_handler(struct k_work *work);
+
+static K_WORK_DELAYABLE_DEFINE(fake_loc_push_dwork, fake_loc_push_dwork_handler);
+
 uint8_t dev_uuid[16];
+
+static void pub_handler(void) {
+    LOG_INF("Received a publish!");
+}
+
+static void fake_loc_push_dwork_handler(struct k_work *work) {
+    static const char *msg = "test-msg";
+    int res = gw_mqtt_client_try_publishing("tag/some-tag-id/loc", msg, strlen(msg));
+    if (res) {
+        LOG_WRN("Loc push failed with res: %d", res);
+    }
+    else {
+        LOG_INF("Loc push successful");
+    }
+
+    k_work_schedule(&fake_loc_push_dwork, K_SECONDS(5));
+}
 
 void hrtls_fail(void) {
     log_panic();
@@ -42,7 +63,22 @@ void main(void) {
     // incompatible with BT unix socket proxy
     k_sleep(K_SECONDS(5));
 
-    run_mqtt_client();
+    const char *const topics[] = {
+        "gw/probably-unique/config"
+    };
+
+    const struct gw_mqtt_client_config client_config = {
+        .server_addr = "test.mosquitto.org",
+        .server_port = 1883,
+        .username = "probably-unique",
+        .password = "pass",
+        .topics = topics,
+        .topics_len = ARRAY_SIZE(topics),
+        .pub_handler = pub_handler
+    };
+
+    k_work_schedule(&fake_loc_push_dwork, K_SECONDS(5));
+    gw_mqtt_client_run(&client_config);
     LOG_ERR("MQTT client unexpectedly returned");
     hrtls_fail();
 }
