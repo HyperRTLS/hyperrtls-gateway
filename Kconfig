@@ -1,0 +1,32 @@
+menu "HyperRTLS"
+
+choice HRTLS_TARGET
+    prompt "App target selection"
+    default HRTLS_TARGET_ANCHOR
+
+    config HRTLS_TARGET_ANCHOR
+        bool "Anchor"
+
+    config HRTLS_TARGET_GW
+        bool "Gateway"
+
+    config HRTLS_TARGET_TAG
+        bool "TAG"
+endchoice
+
+if HRTLS_TARGET_ANCHOR || HRTLS_TARGET_TAG
+    config HRTLS_PAN_ID
+        hex "PAN ID"
+        range 0x0 0xFFFF
+        default 0xDECA
+
+    config HRTLS_UWB_ADDR
+        hex "UWB addr"
+        range 0x0 0xFFFF
+        default 0 if HRTLS_TARGET_TAG
+        default 1 if HRTLS_TARGET_ANCHOR
+endif
+
+endmenu
+
+source "Kconfig.zephyr"
