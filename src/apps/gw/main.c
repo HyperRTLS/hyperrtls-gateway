@@ -1,4 +1,6 @@
+#include <assert.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <inttypes.h>
 
 #include <zephyr/bluetooth/bluetooth.h>
@@ -7,33 +9,48 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/logging/log_ctrl.h>
 
+#include <models/gw.h>
+
 #include "mesh/mesh.h"
 #include "main.h"
 #include "mqtt.h"
 
 LOG_MODULE_REGISTER(main);
 
-static void fake_loc_push_dwork_handler(struct k_work *work);
+#define POSITION_FORMAT "{\"position\": [%f, %f, %f]}"
 
-static K_WORK_DELAYABLE_DEFINE(fake_loc_push_dwork, fake_loc_push_dwork_handler);
+static void mqtt_loc_push_dwork_handler(struct k_work *work);
+static K_WORK_DEFINE(mqtt_loc_push_dwork, mqtt_loc_push_dwork_handler);
+K_MSGQ_DEFINE(locs_queue, sizeof(struct hrtls_model_gw_location), 3, 1);
 
-uint8_t dev_uuid[16];
+static void mqtt_loc_push_dwork_handler(struct k_work *work) {
+    struct hrtls_model_gw_location loc;
+    while (!k_msgq_get(&locs_queue, &loc, K_NO_WAIT)) {
+        static uint8_t msg_buf[256];
+        int res = snprintf(msg_buf, sizeof(msg_buf), POSITION_FORMAT, loc.x, loc.y, loc.z);
+        assert(res > 0);
+        res = gw_mqtt_client_try_publishing("tag/some-tag-id/loc", msg_buf, res);
+        if (res) {
+            LOG_WRN("Loc push failed with res: %d", res);
+        }
+        else {
+            LOG_INF("Loc push successful");
+        }
+    }
+}
 
 static void pub_handler(const uint8_t *buffer, size_t len) {
     LOG_HEXDUMP_INF(buffer, len, "pub_handler");
 }
 
-static void fake_loc_push_dwork_handler(struct k_work *work) {
-    static const char *msg = "test-msg";
-    int res = gw_mqtt_client_try_publishing("tag/some-tag-id/loc", msg, strlen(msg));
-    if (res) {
-        LOG_WRN("Loc push failed with res: %d", res);
-    }
-    else {
-        LOG_INF("Loc push successful");
-    }
+uint8_t dev_uuid[16];
 
-    k_work_schedule(&fake_loc_push_dwork, K_SECONDS(5));
+void loc_push_handler(uint16_t sender_addr, const struct hrtls_model_gw_location *location) {
+    LOG_INF("addr %" PRIu16 "sent location %f/%f/%f", sender_addr, location->x, location->y, location->z);
+    if (k_msgq_put(&locs_queue, location, K_NO_WAIT)) {
+        LOG_WRN("Couldn't fit location into queue");
+    }
+    k_work_submit(&mqtt_loc_push_dwork);
 }
 
 void hrtls_fail(void) {
@@ -77,7 +94,6 @@ void main(void) {
         .pub_handler = pub_handler
     };
 
-    k_work_schedule(&fake_loc_push_dwork, K_SECONDS(5));
     gw_mqtt_client_run(&client_config);
     LOG_ERR("MQTT client unexpectedly returned");
     hrtls_fail();

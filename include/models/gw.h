@@ -7,6 +7,7 @@ struct hrtls_model_gw_location {
     float x;
     float y;
     float z;
+    float err;
 } __packed;
 
 typedef void hrlts_model_gw_loc_push_handler_t(uint16_t sender_addr, const struct hrtls_model_gw_location *location);

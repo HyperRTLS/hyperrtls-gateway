@@ -116,6 +116,7 @@ static void loc_push_work_handler(struct k_work *work) {
     loc.x += 1.;
     loc.y += 1.;
     loc.z += 1.;
+    loc.err += 1.;
 
     // TODO: Technically the delay should be a little shorter, I should aim
     // for scheduling the job to run and roughly the same time
