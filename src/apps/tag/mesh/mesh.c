@@ -101,29 +101,7 @@ static void self_provision(void) {
     vnd_models[0].keys[0] = 0;
 }
 
-static void loc_push_work_handler(struct k_work *work);
-
-static K_WORK_DELAYABLE_DEFINE(loc_push_work, loc_push_work_handler);
-
-static void loc_push_work_handler(struct k_work *work) {
-    // TODO: temporarily hacked
-    static const uint16_t gw_addr = 0x0100;
-    static struct hrtls_model_gw_location loc;
-
-    LOG_INF("Sending location %f/%f/%f to addr 0x%04" PRIx16, loc.x, loc.y, loc.z, gw_addr);
-    int res = hrtls_model_tag_loc_push(&vnd_models[0], gw_addr, &loc);
-    LOG_INF("Send res: %d", res);
-    loc.x += 1.;
-    loc.y += 1.;
-    loc.z += 1.;
-    loc.err += 1.;
-
-    // TODO: Technically the delay should be a little shorter, I should aim
-    // for scheduling the job to run and roughly the same time
-    k_work_schedule(&loc_push_work, K_SECONDS(3));
-}
-
-void bt_ready(int err) {
+static void bt_ready(int err) {
     if (err) {
         LOG_ERR("Bluetooth init failed, %d", err);
         hrtls_fail();
@@ -145,5 +123,14 @@ void bt_ready(int err) {
     self_provision();
 
     LOG_INF("Mesh initialized");
-    k_work_schedule(&loc_push_work, K_SECONDS(5));
+}
+
+int mesh_initialize(struct bt_mesh_model **out_tag_model) {
+    int res = bt_enable(bt_ready);
+    if (res) {
+        return res;
+    }
+
+    *out_tag_model = &vnd_models[0];
+    return 0;
 }

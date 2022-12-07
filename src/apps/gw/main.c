@@ -19,11 +19,13 @@ LOG_MODULE_REGISTER(main);
 
 #define POSITION_FORMAT "{\"position\": [%f, %f, %f]}"
 
-static void mqtt_loc_push_dwork_handler(struct k_work *work);
-static K_WORK_DEFINE(mqtt_loc_push_dwork, mqtt_loc_push_dwork_handler);
+uint8_t dev_uuid[16];
+
+static void mqtt_loc_push_work_handler(struct k_work *work);
+static K_WORK_DEFINE(mqtt_loc_push_work, mqtt_loc_push_work_handler);
 K_MSGQ_DEFINE(locs_queue, sizeof(struct hrtls_model_gw_location), 3, 1);
 
-static void mqtt_loc_push_dwork_handler(struct k_work *work) {
+static void mqtt_loc_push_work_handler(struct k_work *work) {
     struct hrtls_model_gw_location loc;
     while (!k_msgq_get(&locs_queue, &loc, K_NO_WAIT)) {
         static uint8_t msg_buf[256];
@@ -43,14 +45,12 @@ static void pub_handler(const uint8_t *buffer, size_t len) {
     LOG_HEXDUMP_INF(buffer, len, "pub_handler");
 }
 
-uint8_t dev_uuid[16];
-
 void loc_push_handler(uint16_t sender_addr, const struct hrtls_model_gw_location *location) {
     LOG_INF("addr %" PRIu16 "sent location %f/%f/%f", sender_addr, location->x, location->y, location->z);
     if (k_msgq_put(&locs_queue, location, K_NO_WAIT)) {
         LOG_WRN("Couldn't fit location into queue");
     }
-    k_work_submit(&mqtt_loc_push_dwork);
+    k_work_submit(&mqtt_loc_push_work);
 }
 
 void hrtls_fail(void) {
