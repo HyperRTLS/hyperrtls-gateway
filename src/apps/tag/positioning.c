@@ -12,36 +12,36 @@
 LOG_MODULE_REGISTER(positioning);
 
 static const struct rtls_anchor anchors[] = {
-    { // left corner by kitchen, ground
+    { // shelf
         .addr = 1,
         .pos = {
-            .x = 0,
-            .y = 0,
-            .z = 0
+            .x = 2.34,
+            .y = 1.57,
+            .z = 4.31
         }
     },
-    { // right corner by kitchen, on coffee table
+    { // corner of window
         .addr = 2,
         .pos = {
-            .x = 0,
-            .y = 1.8,
-            .z = 0.345
+            .x = 0.27,
+            .y = 2.31,
+            .z = 5.01
         }
     },
-    { // left corner by bathroom, on ground
+    { // wardrobe
         .addr = 3,
         .pos = {
-            .x = 1.8,
-            .y = 1.8,
-            .z = 0
+            .x = 2.56,
+            .y = 2.36,
+            .z = 0.58
         }
     },
-    { // right corner by bathroom, on folding stool
+    { // door
         .addr = 4,
         .pos = {
-            .x = 1.8,
-            .y = 0,
-            .z = 0.395
+            .x = 0.14,
+            .y = 0.05,
+            .z = 0.02
         }
     },
 };

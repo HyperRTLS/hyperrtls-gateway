@@ -229,6 +229,10 @@ abort:;
 }
 
 static int do_subscribe(void) {
+    if (wrapper.config->topics_len == 0) {
+        return 0;
+    }
+
     struct mqtt_topic *topic_list = malloc(wrapper.config->topics_len * sizeof(*topic_list));
     if (!topic_list) {
         return FATAL_ERROR;

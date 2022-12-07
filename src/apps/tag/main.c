@@ -80,7 +80,7 @@ void main(void) {
         hrtls_fail();
     }
 
-    static const int64_t period_ms = 2000;
+    static const int64_t period_ms = 125;
 
     int64_t last_timestamp = k_uptime_get();
     while (true) {

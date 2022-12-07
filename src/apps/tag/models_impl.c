@@ -16,7 +16,7 @@ int hrtls_model_tag_loc_push(struct bt_mesh_model *tag_model, uint16_t addr, str
         .addr = addr,
         .app_idx = tag_model->keys[0],
         .send_ttl = BT_MESH_TTL_DEFAULT,
-        .send_rel = true
+        // .send_rel = true
     };
 
     BT_MESH_MODEL_BUF_DEFINE(buf, HRTLS_MODEL_GW_LOC_PUSH_OPCODE, HRTLS_MODEL_GW_LOC_PUSH_LEN);

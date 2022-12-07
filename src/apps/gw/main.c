@@ -17,7 +17,7 @@
 
 LOG_MODULE_REGISTER(main);
 
-#define POSITION_FORMAT "{\"position\": [%f, %f, %f]}"
+#define POSITION_FORMAT "{\"position\":[%f,%f,%f]}"
 
 uint8_t dev_uuid[16];
 
@@ -31,7 +31,7 @@ static void mqtt_loc_push_work_handler(struct k_work *work) {
         static uint8_t msg_buf[256];
         int res = snprintf(msg_buf, sizeof(msg_buf), POSITION_FORMAT, loc.x, loc.y, loc.z);
         assert(res > 0);
-        res = gw_mqtt_client_try_publishing("tag/some-tag-id/loc", msg_buf, res);
+        res = gw_mqtt_client_try_publishing("gateways/gateway_1/tags/tag_1/position", msg_buf, res);
         if (res) {
             LOG_WRN("Loc push failed with res: %d", res);
         }
@@ -80,15 +80,13 @@ void main(void) {
     // incompatible with BT unix socket proxy
     k_sleep(K_SECONDS(5));
 
-    const char *const topics[] = {
-        "gw/probably-unique/config"
-    };
+    const char *const topics[] = {};
 
     const struct gw_mqtt_client_config client_config = {
-        .server_addr = "test.mosquitto.org",
+        .server_addr = "192.0.2.2",
         .server_port = 1883,
-        .username = "probably-unique",
-        .password = "pass",
+        .username = "gateway_1",
+        .password = "pwd",
         .topics = topics,
         .topics_len = ARRAY_SIZE(topics),
         .pub_handler = pub_handler
