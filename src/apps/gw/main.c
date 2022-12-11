@@ -29,7 +29,7 @@ static void mqtt_loc_push_work_handler(struct k_work *work) {
     struct hrtls_model_gw_location loc;
     while (!k_msgq_get(&locs_queue, &loc, K_NO_WAIT)) {
         static uint8_t msg_buf[256];
-        int res = snprintf(msg_buf, sizeof(msg_buf), POSITION_FORMAT, loc.x, loc.y, loc.z);
+        int res = snprintf(msg_buf, sizeof(msg_buf), POSITION_FORMAT, (((float)loc.x) / 1000), (((float)loc.y) / 1000), (((float)loc.z) / 1000));
         assert(res > 0);
         res = gw_mqtt_client_try_publishing("gateways/gateway_1/tags/tag_1/position", msg_buf, res);
         if (res) {
@@ -46,7 +46,7 @@ static void pub_handler(const uint8_t *buffer, size_t len) {
 }
 
 void loc_push_handler(uint16_t sender_addr, const struct hrtls_model_gw_location *location) {
-    LOG_INF("addr %" PRIu16 "sent location %f/%f/%f", sender_addr, location->x, location->y, location->z);
+    LOG_INF("addr %" PRIu16 "sent location", sender_addr);
     if (k_msgq_put(&locs_queue, location, K_NO_WAIT)) {
         LOG_WRN("Couldn't fit location into queue");
     }

@@ -1,13 +1,15 @@
 #pragma once
+#include <stdint.h>
+
 #include <zephyr/bluetooth/mesh.h>
 
 #include <models/common.h>
 
 struct hrtls_model_gw_location {
-    float x;
-    float y;
-    float z;
-    float err;
+    int16_t x;
+    int16_t y;
+    int16_t z;
+    int16_t err;
 } __packed;
 
 typedef void hrlts_model_gw_loc_push_handler_t(uint16_t sender_addr, const struct hrtls_model_gw_location *location);

@@ -10,7 +10,7 @@
 #include <uwb/utils.h>
 #include <uwb/anchor.h>
 
-#define TARGET_ADDR_OFFSET 5
+#define TARGET_ADDR_OFFSET 7
 
 LOG_MODULE_REGISTER(anchor);
 
@@ -27,8 +27,8 @@ static int ss_poll_verify(uint16_t pan_id,
         0x41, 0x88, // header
         0,
         GET_BYTE(pan_id, 0), GET_BYTE(pan_id, 1),
-        0, 0,
         GET_BYTE(self_addr, 0), GET_BYTE(self_addr, 1),
+        0, 0,
         0xE0 // poll
     };
 
@@ -36,8 +36,8 @@ static int ss_poll_verify(uint16_t pan_id,
         true, true,
         false,
         true, true,
-        false, false,
         true, true,
+        false, false,
         true
     };
 
@@ -59,8 +59,8 @@ static void ss_response_build(uint16_t pan_id,
         0x41, 0x88, // header
         frame_seq_nb,
         GET_BYTE(pan_id, 0), GET_BYTE(pan_id, 1),
-        GET_BYTE(self_addr, 0), GET_BYTE(self_addr, 1),
         GET_BYTE(target_addr, 0), GET_BYTE(target_addr, 1),
+        GET_BYTE(self_addr, 0), GET_BYTE(self_addr, 1),
         0xE1, // response
         GET_BYTE(poll_rx_ts, 0), GET_BYTE(poll_rx_ts, 1),
         GET_BYTE(poll_rx_ts, 2), GET_BYTE(poll_rx_ts, 3),

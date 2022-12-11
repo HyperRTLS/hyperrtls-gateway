@@ -46,22 +46,31 @@ static const struct rtls_anchor anchors[] = {
     },
 };
 
-int perform_positioning(struct rtls_result *out_result) {
+int perform_positioning(struct rtls_result *out_result, size_t repetitions) {
     static struct rtls_pos last_pos = { 0 };
 
     size_t anchor_indices[4];
     rtls_select_nearby_anchors(anchors, ARRAY_SIZE(anchors), last_pos, anchor_indices);
 
-    struct rtls_measurement measurements[4];
-    for (size_t i = 0; i < 4; i++) {
-        const struct rtls_anchor *anchor = &anchors[anchor_indices[i]];
-        int twr_res = uwb_tag_twr(CONFIG_HRTLS_PAN_ID, CONFIG_HRTLS_UWB_ADDR, anchor->addr, &measurements[i].distance);
-        if (twr_res) {
-            LOG_WRN("TWR fail with anchor %" PRIu16 ", res: %d", anchor->addr, twr_res);
-            return -1;
+    // order of iteration is enforced by the fact, that
+    // tags are getting overwhelmed if they're pinged in a row
+    struct rtls_measurement measurements[4] = { 0 };
+    for (size_t i = 0; i < repetitions; i++) {
+        for (size_t j = 0; j < 4; j++) {
+            const struct rtls_anchor *anchor = &anchors[anchor_indices[j]];
+            float distance;
+            int twr_res = uwb_tag_twr(CONFIG_HRTLS_PAN_ID, CONFIG_HRTLS_UWB_ADDR, anchor->addr, &distance);
+            if (twr_res) {
+                LOG_WRN("TWR fail with anchor %" PRIu16 ", res: %d", anchor->addr, twr_res);
+                return -1;
+            }
+            measurements[j].distance += distance;
+            k_sleep(K_MSEC(2));
         }
-        measurements[i].anchor_pos = anchor->pos;
-        k_sleep(K_MSEC(10));
+    }
+    for (size_t i = 0; i < 4; i++) {
+        measurements[i].distance /= repetitions;
+        measurements[i].anchor_pos = anchors[anchor_indices[i]].pos;
     }
 
     int64_t start_time = k_uptime_get();

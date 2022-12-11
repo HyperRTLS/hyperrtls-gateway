@@ -10,6 +10,8 @@
 #include <uwb/utils.h>
 #include <uwb/tag.h>
 
+LOG_MODULE_REGISTER(tag);
+
 #define SS_POLL_RX_TS_OFFSET 10
 #define SS_RESP_TX_TS_OFFSET 14
 
@@ -25,8 +27,8 @@ static void ss_poll_build(uint16_t pan_id,
         0x41, 0x88, // header
         frame_seq_nb,
         GET_BYTE(pan_id, 0), GET_BYTE(pan_id, 1),
-        GET_BYTE(self_addr, 0), GET_BYTE(self_addr, 1),
         GET_BYTE(target_addr, 0), GET_BYTE(target_addr, 1),
+        GET_BYTE(self_addr, 0), GET_BYTE(self_addr, 1),
         0xE0 // poll
     };
 
@@ -40,8 +42,8 @@ static int ss_response_verify(uint16_t pan_id, uint16_t self_addr, uint16_t targ
         0x41, 0x88, //header
         0,
         GET_BYTE(pan_id, 0), GET_BYTE(pan_id, 1),
-        GET_BYTE(target_addr, 0), GET_BYTE(target_addr, 1),
         GET_BYTE(self_addr, 0), GET_BYTE(self_addr, 1),
+        GET_BYTE(target_addr, 0), GET_BYTE(target_addr, 1),
         0xE1 // response
     };
 
@@ -88,6 +90,7 @@ static int uwb_tag_twr_ss(uint16_t pan_id, uint16_t self_addr, uint16_t target_a
     }
 
     if (ss_response_verify(pan_id, self_addr, target_addr, response_buf)) {
+        LOG_HEXDUMP_INF(response_buf, SS_RESP_LEN, "XD");
         return -5;
     }
 

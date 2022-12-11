@@ -33,13 +33,13 @@ static void mesh_loc_push_work_handler(struct k_work *work) {
     struct rtls_result rtls_result;
     while (!k_msgq_get(&rtls_result_queue, &rtls_result, K_NO_WAIT)) {
         struct hrtls_model_gw_location loc = {
-            .x = rtls_result.pos.x,
-            .y = rtls_result.pos.y,
-            .z = rtls_result.pos.z,
-            .err = rtls_result.error
+            .x = rtls_result.pos.x * 1000,
+            .y = rtls_result.pos.y * 1000,
+            .z = rtls_result.pos.z * 1000,
+            .err = rtls_result.error * 1000
         };
 
-        LOG_INF("Sending location %f/%f/%f/%f to addr 0x%04" PRIx16, loc.x, loc.y, loc.z, loc.err, gw_addr);
+        LOG_INF("Sending location to addr 0x%04" PRIx16, gw_addr);
         int res = hrtls_model_tag_loc_push(tag_model, gw_addr, &loc);
         LOG_INF("Send res: %d", res);
     }
@@ -80,12 +80,12 @@ void main(void) {
         hrtls_fail();
     }
 
-    static const int64_t period_ms = 125;
+    static const int64_t period_ms = 200;
 
     int64_t last_timestamp = k_uptime_get();
     while (true) {
         struct rtls_result rtls_result;
-        err = perform_positioning(&rtls_result);
+        err = perform_positioning(&rtls_result, 5);
 
         if (!err) {
             send_location(&rtls_result);

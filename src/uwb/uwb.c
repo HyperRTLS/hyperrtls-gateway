@@ -1,4 +1,5 @@
 #include <dw1000/decadriver/deca_device_api.h>
+#include <dw1000/decadriver/deca_regs.h>
 #include <dw1000/platform/deca_spi.h>
 #include <dw1000/platform/port.h>
 
@@ -58,11 +59,16 @@ int uwb_module_initialize(enum uwb_twr_mode mode) {
     if (!res) {
         return -1;
     }
+    static uint8_t eui[] = {'A', 'C', 'K', 'D', 'A', 'T', 'R', 'X'};
 
     port_set_dw1000_fastrate();
     dwt_configure(mode == UWB_TWR_MODE_SS ? &config_ss : &config_ds);
     dwt_setrxantennadelay(RX_ANT_DLY);
     dwt_settxantennadelay(TX_ANT_DLY);
+    dwt_setpanid(CONFIG_HRTLS_PAN_ID);
+    dwt_setaddress16(CONFIG_HRTLS_UWB_ADDR);
+    dwt_seteui(eui);
+    dwt_enableframefilter(SYS_CFG_FF_ALL_EN);
 
     uwb_current_mode = mode;
 
