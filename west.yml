@@ -1,0 +1,14 @@
+manifest:
+  remotes:
+  - name: zephyrproject-rtos
+    url-base: https://github.com/zephyrproject-rtos
+  projects:
+  - name: zephyr
+    path: zephyr
+    remote: zephyrproject-rtos
+    revision: v3.1.0
+    import: true
+  - name: zscilib
+    path: modules/lib/zscilib
+    remote: zephyrproject-rtos
+    revision: fc979a8dcb74169c69b02835927bff8f070d6325

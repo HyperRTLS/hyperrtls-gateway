@@ -1,0 +1,10 @@
+/ {
+    aliases {
+        dw1000-bus = &spi2;
+    };
+    zephyr,user {
+        dw1000-slowrate = <(2 * 1000 * 1000)>;
+        dw1000-fastrate = <(8 * 1000 * 1000)>;
+        signal-gpios = <&gpio0 21 GPIO_ACTIVE_LOW>;
+    };
+};
